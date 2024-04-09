@@ -22,6 +22,10 @@ import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 public class InternalHttpClientInstrumentation extends TypeInstrumentation {
+    /**
+     * https://mp.weixin.qq.com/s/eCEWvZMu_3mz-E0diR-Ppg
+     * (包含apache-httpclient-v4的实现过程解析, 异步参见InternalHttpAsyncClientInstrumentation)
+     */
 
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {

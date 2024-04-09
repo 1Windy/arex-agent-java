@@ -23,6 +23,9 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
  * FilterInstrumentationV3
  */
 public class FilterInstrumentationV3 extends TypeInstrumentation {
+    /**
+     * 入口请求的录制是在 javax.servlet.Filter 的 doFilter（还有几个其他的类和函数等等）收到请求后，如果通过录制频率检测，就会开始录制请求。
+     */
 
     @Override
     public ElementMatcher<TypeDescription> typeMatcher() {

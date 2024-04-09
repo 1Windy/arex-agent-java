@@ -21,6 +21,22 @@ public class ContextManager {
     }
 
     /**
+     * AREX Agent 源码解读之全链路跟踪和 Mock 数据读写: https://mp.weixin.qq.com/s/eCEWvZMu_3mz-E0diR-Ppg
+     *
+     * 1、(FilterInstrumentationV3)入口请求的录制是在 javax.servlet.Filter 的 doFilter（还有几个其他的类和函数等等）收到请求后，如果通过录制频率检测，就会开始录制请求。
+     *
+     * 2、当函数被调用时（ContextManager.currentContext(true, id)）：
+     *
+     * 在 EventProcessor 中，initContext 函数会调用 ContextManager.currentContext(true, id)，onCreate 会调用 initContext 函数。
+     *
+     * 在 CaseEventDispatcher 中，onEvent(Create) 会调用上述的 initContext 函数。
+     *
+     * 在 ServletAdviceHelper 中，会调用上述的 onEvent 函数。
+     *
+     * 在 FilterInstrumentationV3 中，会调用上述的 onEvent 函数。这些类和函数的注入可以在代码中看到。
+     */
+
+    /**
      * agent will call this method
      * record scene: recordId is map key
      * replay scene: replayId is map key
