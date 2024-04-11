@@ -13,6 +13,14 @@ import java.util.WeakHashMap;
  * 4. Change from InheritableThreadLocal to ThreadLocal，avoid collect unexpected data
  */
 public class ArexThreadLocal<T> extends ThreadLocal<T> {
+    /**
+     * ArexThreadLocal 是 AREX 的存储 context 的基础类，继承 InheritableThreadLocal 类，用于存储 Tracing、Logging 和 Metrics 信号等数据。
+     *
+     * InheritableThreadLocal --> ThreadLocal：avoid collect unexpected data(上述原因4)
+     *
+     * InheritableThreadLocal 是 Java 中的一个线程本地存储类，它允许子线程继承父线程的线程本地变量。
+     * 与普通的 ThreadLocal 不同，InheritableThreadLocal 可以在子线程中访问父线程中设置的线程本地变量。
+     */
 
     public ArexThreadLocal() {
     }

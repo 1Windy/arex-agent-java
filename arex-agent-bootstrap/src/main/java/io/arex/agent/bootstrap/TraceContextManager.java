@@ -6,6 +6,13 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 
 public class TraceContextManager {
+    /**
+     * TraceContextManager 是 AREX 跟踪上下文的管理对象，其中包含了一个静态变量 TRACE_CONTEXT 的对象 (ArexThreadLocal)，用于存储和读取 TraceID。
+     * 同时，TraceContextManager 还包含了 IDGenerator，用于生成以 “AREX-” 为前缀的 ID。
+     *
+     * 通过 TraceContextManager 对静态变量 TRACE_CONTEXT 进行设置操作，可以理解为 Tracing 的入口，这样可以设置 TransactionID，进行上下文的跟踪。
+     */
+
     private static final ArexThreadLocal<String> TRACE_CONTEXT = new ArexThreadLocal<>();
     private static IDGenerator idGenerator;
 
