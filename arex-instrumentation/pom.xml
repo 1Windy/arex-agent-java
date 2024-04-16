@@ -55,6 +55,7 @@
         <module>authentication/arex-shiro</module>
         <module>authentication/arex-jcasbin</module>
         <module>config/arex-apollo</module>
+        <module>demo/arex-demo</module>
     </modules>
     <dependencies>
         <dependency>

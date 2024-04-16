@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>arex-instrumentation-parent</artifactId>
+        <groupId>io.arex</groupId>
+        <version>${revision}</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>arex-demo</artifactId>
+
+    <dependencies>
+        <!-- arex-agent 使用的一些基础类和工具，比如录制回放相关组件，配置信息等 -->
+        <dependency>
+            <groupId>io.arex</groupId>
+            <artifactId>arex-instrumentation-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- 此处仅为演示使用，实际开发中替换成你们公司需要 Mock 的组件即可 -->
+        <dependency>
+            <groupId>com.your.company.dal</groupId>
+            <artifactId>dalclient</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- arex-agent修饰代码需要shade插件里的bytebuddy，不要去掉 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <relocations>
+                                <relocation>
+                                    <pattern>net.bytebuddy</pattern>
+                                    <shadedPattern>shaded.net.bytebuddy</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers>
+                                <transformers implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <artifactSet>
+                        <includes>
+                            <!--只需要将扩展的插件打入到Jar包即可，格式为：{groupId}:{artifactId}-->
+                            <include>io.arex:arex-demo</include>
+                        </includes>
+                    </artifactSet>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+
+</project>
