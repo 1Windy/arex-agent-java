@@ -1,5 +1,6 @@
 package io.arex.inst.dubbo.alibaba;
 
+import com.alibaba.dubbo.rpc.Result;
 import com.alibaba.dubbo.rpc.RpcContext;
 import com.alibaba.dubbo.rpc.RpcInvocation;
 import io.arex.inst.runtime.config.Config;
@@ -7,6 +8,8 @@ import io.arex.inst.runtime.context.ArexContext;
 import io.arex.inst.runtime.context.ContextManager;
 import io.arex.inst.runtime.context.RecordLimiter;
 import io.arex.inst.runtime.listener.CaseEventDispatcher;
+import io.arex.inst.runtime.listener.EventProcessor;
+import io.arex.inst.runtime.util.CaseManager;
 import io.arex.inst.runtime.util.IgnoreUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -44,6 +47,8 @@ class DubboProviderExtractorTest {
         Mockito.mockStatic(Config.class);
         Mockito.when(ContextManager.currentContext()).thenReturn(ArexContext.of("mock"));
         Mockito.when(Config.get()).thenReturn(Mockito.mock(Config.class));
+        Mockito.mockStatic(EventProcessor.class);
+        Mockito.when(EventProcessor.dependencyInitComplete()).thenReturn(true);
     }
 
     @AfterAll
@@ -63,7 +68,8 @@ class DubboProviderExtractorTest {
     @MethodSource("onServiceExitCase")
     void onServiceExit(Runnable mocker, Runnable asserts) {
         mocker.run();
-        DubboProviderExtractor.onServiceExit(null, invocation, null);
+        Result result = Mockito.mock(Result.class);
+        DubboProviderExtractor.onServiceExit(null, invocation, result);
         asserts.run();
     }
 

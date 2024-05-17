@@ -43,7 +43,9 @@ AREX utilizes the advanced Java technique, Instrument API, and is capable of ins
 - Spring WebClient [5.0,)
 - Spring Template
 - Feign [9.0,)
+- Elasticsearch Client [7.x,)
 #### Redis Client
+- RedisTemplate
 - Jedis [2.10+, 4+]
 - Redisson [3.0,)
 - Lettuce [5.x, 6.x]
@@ -73,13 +75,7 @@ or build the artifacts with the following commands. The build process supports J
 
 `mvn clean install -DskipTests`
 
-The agent jar is in the folder `arex-agent-jar/` after the build process.
-There will be two jar files in the folder.
-
-```other
-arex-agent.jar
-arex-agent-bootstrap.jar
-```
+The `arex-agent.jar` is in the folder `arex-agent-jar/` after the build process.
 
 If you wanna jar with version, build the artifacts with the following commands. 
 

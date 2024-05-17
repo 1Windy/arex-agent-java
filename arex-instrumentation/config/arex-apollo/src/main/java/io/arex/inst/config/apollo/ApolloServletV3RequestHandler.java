@@ -3,7 +3,6 @@ package io.arex.inst.config.apollo;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import com.google.auto.service.AutoService;
-import io.arex.agent.bootstrap.model.MockCategoryType;
 import io.arex.inst.runtime.context.ContextManager;
 import io.arex.inst.runtime.model.ArexConstants;
 import io.arex.inst.runtime.request.RequestHandler;
@@ -12,7 +11,7 @@ import io.arex.inst.runtime.request.RequestHandler;
 public class ApolloServletV3RequestHandler implements RequestHandler<HttpServletRequest, HttpServletResponse> {
     @Override
     public String name() {
-        return MockCategoryType.SERVLET.getName();
+        return ArexConstants.SERVLET_V3;
     }
 
     @Override

@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import io.arex.inst.runtime.util.sizeof.ThrowableFilter;
+import org.aspectj.lang.ProceedingJoinPoint;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -44,6 +45,8 @@ public class DynamicClassExtractor {
     private static final String NEED_REPLAY_TITLE = "dynamic.needReplay";
     public static final String MONO = "reactor.core.publisher.Mono";
     public static final String FLUX = "reactor.core.publisher.Flux";
+    public static final String METHOD_JOINT_POINT_TYPE = "org.aspectj.lang.ProceedingJoinPoint";
+    private static final String SEPARATE = "-";
     private final String clazzName;
     private final String methodName;
     private final String methodKey;
@@ -61,7 +64,7 @@ public class DynamicClassExtractor {
     private static final AgentSizeOf agentSizeOf = AgentSizeOf.newInstance(ThrowableFilter.INSTANCE);
 
     public DynamicClassExtractor(Method method, Object[] args, String keyExpression, Class<?> actualType) {
-        this.clazzName = method.getDeclaringClass().getName();
+        this.clazzName = normalizeClassName(method.getDeclaringClass().getName());
         this.methodName = method.getName();
         this.args = args;
         this.dynamicSignature = getDynamicEntitySignature();
@@ -71,19 +74,41 @@ public class DynamicClassExtractor {
         this.requestType = buildRequestType(method);
     }
 
-    public DynamicClassExtractor(Method method, Object[] args) {
-        this.clazzName = method.getDeclaringClass().getName();
-        this.methodName = method.getName();
-        this.args = args;
+    public DynamicClassExtractor(Method method, Object[] args, Object target) {
+        int proceedingJoinPointIndex = proceedingJoinPointIndex(method.getParameterTypes());
+        if (proceedingJoinPointIndex != -1) {
+            ProceedingJoinPoint proceedingJoinPoint = (ProceedingJoinPoint) args[proceedingJoinPointIndex];
+            // advice method name + "-" + target class name
+            this.clazzName = method.getName() + SEPARATE + proceedingJoinPoint.getSignature().getDeclaringTypeName();
+            this.methodName = proceedingJoinPoint.getSignature().getName();
+            this.args = proceedingJoinPoint.getArgs();
+            this.requestType = ArrayUtils.toString(this.args, o -> o.getClass().getTypeName());
+        } else {
+            this.clazzName = normalizeClassName(getTargetClassName(method.getDeclaringClass(), target));
+            this.methodName = method.getName();
+            this.args = args;
+            this.requestType = ArrayUtils.toString(method.getParameterTypes(), obj -> ((Class<?>)obj).getTypeName());
+        }
         this.dynamicSignature = getDynamicEntitySignature();
-        this.methodKey = buildMethodKey(method, args);
+        this.methodKey = buildMethodKey(method, this.args);
         this.methodReturnType = TypeUtil.getName(method.getReturnType());
         this.actualType = null;
-        this.requestType = buildRequestType(method);
+    }
+
+    private int proceedingJoinPointIndex(Class<?>[] parameterTypes) {
+        if (ArrayUtils.isEmpty(parameterTypes)) {
+            return -1;
+        }
+        for (int i = 0; i < parameterTypes.length; i++) {
+            if (METHOD_JOINT_POINT_TYPE.equals(parameterTypes[i].getTypeName())) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public DynamicClassExtractor(String clazzName, String methodName, Object[] args, String methodReturnType) {
-        this.clazzName = clazzName;
+        this.clazzName = normalizeClassName(clazzName);
         this.methodName = methodName;
         this.args = args;
         this.dynamicSignature = getDynamicEntitySignature();
@@ -375,5 +400,33 @@ public class DynamicClassExtractor {
             return StringUtil.encodeAndHash(String.format("%s_%s_%s", this.clazzName, this.methodName, getSerializedResult()));
         }
         return StringUtil.encodeAndHash(String.format("%s_%s_%s", this.clazzName, this.methodName, null));
+    }
+
+    /**
+     * abstract class BaseCache{
+     *     Object method() {
+     *     }
+     * }
+     * class subCache extends BaseCache{
+     *    Object methodB() {
+     *    }
+     * }
+     * when call subCache.method() -> BaseCache.method(), the target class name is subCache
+     * when call subCache.methodB(), the target class name is subCache
+     * @param target maybe null when method is static
+     */
+    private String getTargetClassName(Class<?> clazz, Object target) {
+        if (target != null) {
+            return target.getClass().getName();
+        }
+        return clazz.getName();
+    }
+
+    String normalizeClassName(String className) {
+        // ex: com.xxx.xxx.client$$EnhancerBySpringCGLIB$$1e3f5g
+        if (StringUtil.isNotEmpty(className) && className.contains("CGLIB$$")) {
+            return StringUtil.substringBefore(className, "$$");
+        }
+        return className;
     }
 }

@@ -2,6 +2,8 @@ package io.arex.inst.runtime.listener;
 
 import io.arex.agent.bootstrap.cache.TimeCache;
 import io.arex.agent.bootstrap.model.Mocker;
+import io.arex.agent.bootstrap.util.AdviceClassesCollector;
+import io.arex.agent.bootstrap.util.NumberUtil;
 import io.arex.agent.bootstrap.util.StringUtil;
 import io.arex.inst.runtime.model.InitializeEnum;
 import io.arex.inst.runtime.request.RequestHandlerManager;
@@ -16,6 +18,7 @@ import io.arex.agent.bootstrap.util.ServiceLoader;
 
 import java.util.List;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.LoggerFactory;
 
@@ -25,12 +28,20 @@ public class EventProcessor {
     private static final String CLOCK_METHOD = "currentTimeMillis";
     public static final String EXCLUDE_MOCK_TYPE = "java.util.HashMap-java.lang.String,java.util.HashSet";
     private static final AtomicReference<InitializeEnum> INIT_DEPENDENCY = new AtomicReference<>(InitializeEnum.START);
+    private static boolean existJacksonDependency = true;
+    static {
+        try {
+            Class.forName("com.fasterxml.jackson.databind.ObjectMapper",true, Thread.currentThread().getContextClassLoader());
+        } catch (ClassNotFoundException e) {
+            existJacksonDependency = false;
+        }
+    }
 
     /**
      * the onRequest method must be called before calling the onCreate method
      */
     public static void onCreate(EventSource source){
-        if (!InitializeEnum.COMPLETE.equals(INIT_DEPENDENCY.get())) {
+        if (!dependencyInitComplete()) {
             return;
         }
         initContext(source);
@@ -55,9 +66,12 @@ public class EventProcessor {
     /**
      * user loader to load serializer, ex: ParallelWebappClassLoader
      */
-    private static void initSerializer() {
-        Serializer.initSerializerConfigMap();
-        final List<StringSerializable> serializableList = ServiceLoader.load(StringSerializable.class, Thread.currentThread().getContextClassLoader());
+    private static void initSerializer(ClassLoader contextClassLoader) {
+        if (!existJacksonDependency) {
+            AdviceClassesCollector.INSTANCE.appendToClassLoaderSearch("jackson",
+                    contextClassLoader);
+        }
+        final List<StringSerializable> serializableList = ServiceLoader.load(StringSerializable.class, contextClassLoader);
         Serializer.builder(serializableList).build();
     }
 
@@ -72,7 +86,7 @@ public class EventProcessor {
         try {
             if (ContextManager.needReplay()) {
                 Mocker mocker = MockUtils.createDynamicClass(CLOCK_CLASS, CLOCK_METHOD);
-                long millis = parseLong(MockUtils.replayBody(mocker));
+                long millis = NumberUtil.parseLong(MockUtils.replayBody(mocker));
                 if (millis > 0) {
                     TimeCache.put(millis);
                 }
@@ -93,38 +107,31 @@ public class EventProcessor {
 
     /**
      * Processing at the beginning of entry, for example:Servlet、Netty
-     * init dependency only once, the context is only allowed to be created after the initialization is complete
+     * init dependency only once, the context is only allowed to be created after the initialization is complete.
+     * The initialization process should not block the main thread and should be done asynchronously.
+     * Recording should start after INIT_DEPENDENCY is set to complete.
      */
     public static void onRequest(){
         if (INIT_DEPENDENCY.compareAndSet(InitializeEnum.START, InitializeEnum.RUNNING)) {
-            initSerializer();
-            initLog();
-            RequestHandlerManager.init();
-            INIT_DEPENDENCY.set(InitializeEnum.COMPLETE);
+            ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+            // https://bugs.openjdk.org/browse/JDK-8172726
+            CompletableFuture.runAsync(() -> {
+                initSerializer(contextClassLoader);
+                initLog(contextClassLoader);
+                RequestHandlerManager.init(contextClassLoader);
+                INIT_DEPENDENCY.set(InitializeEnum.COMPLETE);
+            });
         }
         TimeCache.remove();
         ContextManager.remove();
     }
 
-    private static void initLog() {
-        List<Logger> extensionLoggerList = ServiceLoader.load(Logger.class, Thread.currentThread().getContextClassLoader());
+    private static void initLog(ClassLoader contextClassLoader) {
+        List<Logger> extensionLoggerList = ServiceLoader.load(Logger.class, contextClassLoader);
         LogManager.build(extensionLoggerList);
     }
 
-    private static long parseLong(Object value) {
-        if (value == null) {
-            return 0;
-        }
-
-        String valueStr = String.valueOf(value);
-        if (StringUtil.isEmpty(valueStr)) {
-            return 0;
-        }
-
-        try {
-            return Long.parseLong(valueStr);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+    public static boolean dependencyInitComplete() {
+        return InitializeEnum.COMPLETE.equals(INIT_DEPENDENCY.get());
     }
 }

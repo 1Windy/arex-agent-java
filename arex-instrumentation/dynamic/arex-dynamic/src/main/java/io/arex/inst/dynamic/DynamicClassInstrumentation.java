@@ -106,7 +106,7 @@ public class DynamicClassInstrumentation extends TypeInstrumentation {
     public List<MethodInstrumentation> methodAdvices() {
         ElementMatcher.Junction<MethodDescription> matcher = null;
         if (onlyClass != null) {
-            matcher = isMethod().and(isPublic()).and(not(takesNoArguments()))
+            matcher = isMethod().and(isPublic()).and(not(takesNoArguments())).and(not(returns(TypeDescription.ForLoadedType.of(void.class))))
                 .and(not(isAnnotatedWith(namedOneOf(DynamicConstants.SPRING_CACHE, DynamicConstants.AREX_MOCK))));
             if (isNotAbstractClass(onlyClass.getClazzName())) {
                 matcher = matcher.and(not(isOverriddenFrom(namedOneOf(Config.get().getDynamicAbstractClassList()))));
@@ -143,6 +143,7 @@ public class DynamicClassInstrumentation extends TypeInstrumentation {
 
         @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
         public static boolean onEnter(@Advice.Origin Method method,
+            @Advice.This(optional = true) Object target,
             @Advice.AllArguments Object[] args,
             @Advice.Local("extractor") DynamicClassExtractor extractor,
             @Advice.Local("mockResult") MockResult mockResult) {
@@ -153,7 +154,7 @@ public class DynamicClassInstrumentation extends TypeInstrumentation {
                 if (void.class.isAssignableFrom(method.getReturnType())) {
                     return ContextManager.needReplay();
                 }
-                extractor = new DynamicClassExtractor(method, args);
+                extractor = new DynamicClassExtractor(method, args, target);
             }
             if (ContextManager.needReplay()) {
                 mockResult = extractor.replay();

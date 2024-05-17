@@ -3,6 +3,11 @@ package io.arex.inst.runtime.model;
 public class ArexConstants {
     private ArexConstants() {}
 
+    /**
+     * The prefix of the header passed through the gateway.
+     */
+    public static final String HEADER_X_PREFIX = "X-";
+
     public static final String RECORD_ID = "arex-record-id";
     public static final String REPLAY_ID = "arex-replay-id";
     public static final String REPLAY_WARM_UP = "arex-replay-warm-up";
@@ -54,4 +59,6 @@ public class ArexConstants {
     public static final String EXCEED_MAX_SIZE_TITLE = "exceed.max.size";
     public static final String EXCEED_MAX_SIZE_FLAG = "isExceedMaxSize";
     public static final String RECORD_SIZE_LIMIT = "arex.record.size.limit";
+    public static final String SERVLET_V3 = "ServletV3";
+    public static final String SERVLET_V5 = "ServletV5";
 }

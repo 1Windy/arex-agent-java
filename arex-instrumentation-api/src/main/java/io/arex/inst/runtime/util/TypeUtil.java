@@ -66,7 +66,11 @@ public class TypeUtil {
                 }
 
                 if (typeParametersLength == 2) {
-                    final String[] split = StringUtil.splitByFirstSeparator(types[1], COMMA);
+                    String[] split = StringUtil.splitByFirstSeparator(types[1], COMMA);
+                    if (split[0].contains(HORIZONTAL_LINE_STR)) {
+                        // ex: Pair-Map-String,String,Boolean
+                        split = StringUtil.splitByLastSeparator(types[1], COMMA);
+                    }
                     Type[] args = new Type[]{forName(split[0]), forName(split[1])};
                     ParameterizedTypeImpl parameterizedType = ParameterizedTypeImpl.make(raw, args, null);
                     TYPE_NAME_CACHE.put(typeName, parameterizedType);
@@ -379,20 +383,9 @@ public class TypeUtil {
         return builder.toString();
     }
 
-    public static String arrayObjectToString(Object[] objects) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < objects.length; i++) {
-            builder.append(objects[i].getClass().getName());
-            if (i != objects.length - 1) {
-                builder.append(",");
-            }
-        }
-        return builder.toString();
-    }
-
     public static String errorSerializeToString(Object object) {
         if (object instanceof Object[]) {
-            return arrayObjectToString((Object[]) object);
+            return ArrayUtils.toString((Object[]) object, o -> o.getClass().getTypeName());
         }
         return getName(object);
     }

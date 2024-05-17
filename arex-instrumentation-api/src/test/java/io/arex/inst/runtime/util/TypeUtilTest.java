@@ -258,7 +258,7 @@ class TypeUtilTest {
         args[1] = arg2;
         args[2] = arg3;
         String argsType = TypeUtil.errorSerializeToString(args);
-        assertEquals("java.lang.String,java.lang.Double,java.time.LocalDateTime", argsType);
+        assertEquals("[\"java.lang.String\", \"java.lang.Double\", \"java.time.LocalDateTime\"]", argsType);
         // just one class
         final String arg2Type = TypeUtil.errorSerializeToString(arg2);
         assertEquals("java.lang.Double", arg2Type);
@@ -388,6 +388,18 @@ class TypeUtilTest {
         type = TypeUtil.forName("com.google.common.collect.AbstractMultiset$ElementSet-java.time.LocalDateTime");
         assert type != null;
         assertEquals("java.util.Set<java.time.LocalDateTime>", type.getTypeName());
+    }
+
+    @Test
+    void testPairMap() {
+        Map<String, String> map = new HashMap<>();
+        map.put("key", "value");
+        final Pair<Map<String, String>, Boolean> pair = Pair.of(map, Boolean.TRUE);
+        final String name = TypeUtil.getName(pair);
+        assertEquals("io.arex.agent.bootstrap.internal.Pair-java.util.HashMap-java.lang.String,java.lang.String,java.lang.Boolean", name);
+        final Type type = TypeUtil.forName(name);
+        assert type != null;
+        assertEquals("io.arex.agent.bootstrap.internal.Pair<java.util.HashMap<java.lang.String, java.lang.String>, java.lang.Boolean>", type.getTypeName());
     }
 
     public static class FlightCollection extends ArrayList<LocalDateTime> {

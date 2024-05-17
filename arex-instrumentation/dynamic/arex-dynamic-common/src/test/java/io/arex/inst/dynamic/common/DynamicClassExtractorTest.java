@@ -28,6 +28,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import io.arex.inst.runtime.util.sizeof.AgentSizeOf;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -94,7 +96,7 @@ class DynamicClassExtractorTest {
                 return null;
             });
             Method testWithArexMock = getMethod(result);
-            DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args);
+            DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args, null);
             extractor.recordResponse(result);
 
             assertTrue(predicate.test(result));
@@ -123,7 +125,7 @@ class DynamicClassExtractorTest {
             Method testWithArexMock = DynamicClassExtractorTest.class.getDeclaredMethod("testWithArexMock",
                 String.class);
             final Object[] args = {"errorSerialize"};
-            final DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args);
+            final DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args, null);
             final Predicate<Object> nonNull = Objects::nonNull;
 
             // exception
@@ -425,10 +427,10 @@ class DynamicClassExtractorTest {
         final Object[] args = {"errorSerialize"};
         ConfigBuilder.create("invalid-operation").enableDebug(true).build();
         Mockito.when(Serializer.serializeWithException(any(), anyString())).thenThrow(new RuntimeException("errorSerialize"));
-        DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args);
+        DynamicClassExtractor extractor = new DynamicClassExtractor(testWithArexMock, args, null);
         extractor.recordResponse("errorSerialize");
         // invalid operation return empty
-        DynamicClassExtractor extractor2 = new DynamicClassExtractor(testWithArexMock, args);
+        DynamicClassExtractor extractor2 = new DynamicClassExtractor(testWithArexMock, args, null);
         final Field methodKey = DynamicClassExtractor.class.getDeclaredField("methodKey");
         methodKey.setAccessible(true);
         assertNull(methodKey.get(extractor2));
@@ -440,14 +442,14 @@ class DynamicClassExtractorTest {
 
         // test getSerializedResult serialize
         Mockito.when(agentSizeOf.checkMemorySizeLimit(any(), any(long.class))).thenReturn(true);
-        extractor = new DynamicClassExtractor(testWithArexMock, args);
+        extractor = new DynamicClassExtractor(testWithArexMock, args, null);
         assertNull(extractor.getSerializedResult());
     }
 
     @Test
     void emptyMethodKeyAndExceedSize() throws NoSuchMethodException {
         Method testEmptyArgs = DynamicClassExtractorTest.class.getDeclaredMethod("invalidOperation");
-        DynamicClassExtractor extractor = new DynamicClassExtractor(testEmptyArgs, new Object[0]);
+        DynamicClassExtractor extractor = new DynamicClassExtractor(testEmptyArgs, new Object[0], null);
         assertDoesNotThrow(() -> extractor.recordResponse(new int[1001]));
     }
 
@@ -541,5 +543,54 @@ class DynamicClassExtractorTest {
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    void refactorClassName() throws NoSuchMethodException {
+        DynamicClassExtractor extractor = new DynamicClassExtractor("refactorClassName", "methoName", null, null);
+
+        String enhancerBySpringCGLIBClassName = "com.trip.flight.BasicClient$$EnhancerBySpringCGLIB$$fc02870";
+        assertEquals("com.trip.flight.BasicClient", extractor.normalizeClassName(enhancerBySpringCGLIBClassName));
+
+        String normalClassName = "com.trip.flight.BasicClient";
+        assertEquals("com.trip.flight.BasicClient", extractor.normalizeClassName(normalClassName));
+
+        assertNull(extractor.normalizeClassName(null));
+    }
+
+    @Test
+    void testProceedingJointPoint() throws Throwable {
+        Method testProceedingJointPoint = DynamicClassExtractorTest.class.getDeclaredMethod("testProceedingJointPoint", ProceedingJoinPoint.class);
+        ProceedingJoinPoint joinPoint = Mockito.mock(ProceedingJoinPoint.class);
+        Signature signature = Mockito.mock(Signature.class);
+        Mockito.when(joinPoint.getSignature()).thenReturn(signature);
+        String arg1 = "arg1";
+        Mockito.when(joinPoint.getArgs()).thenReturn(new Object[]{arg1});
+        DynamicClassExtractor extractor = new DynamicClassExtractor(testProceedingJointPoint, new Object[]{joinPoint}, null);
+        Field requestType = DynamicClassExtractor.class.getDeclaredField("requestType");
+        requestType.setAccessible(true);
+        assertEquals("[\"java.lang.String\"]", requestType.get(extractor));
+    }
+
+    public void testProceedingJointPoint(ProceedingJoinPoint joinPoint) {
+    }
+
+    @Test
+    void testRecordWithAbstractClassMethod() throws Exception {
+        CacheClass cacheClass = new CacheClass();
+        Method abstractMethod = AbstractClass.class.getDeclaredMethod("abstractMethod", String.class);
+        Field clazzName = DynamicClassExtractor.class.getDeclaredField("clazzName");
+        clazzName.setAccessible(true);
+        DynamicClassExtractor extractor = new DynamicClassExtractor(abstractMethod, new Object[]{"arg"}, cacheClass);
+        assertEquals(CacheClass.class.getName(), clazzName.get(extractor));
+    }
+
+    static abstract class AbstractClass {
+        public String abstractMethod(String arg) {
+            return arg;
+        }
+    }
+
+    static class CacheClass extends AbstractClass {
     }
 }

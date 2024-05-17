@@ -3,13 +3,13 @@ package io.arex.inst.httpservlet;
 import io.arex.agent.bootstrap.TraceContextManager;
 import io.arex.agent.bootstrap.constants.ConfigConstants;
 import io.arex.agent.bootstrap.internal.Pair;
-import io.arex.agent.bootstrap.model.MockCategoryType;
 import io.arex.agent.bootstrap.util.CollectionUtil;
 import io.arex.agent.bootstrap.util.StringUtil;
 import io.arex.inst.httpservlet.adapter.ServletAdapter;
 import io.arex.inst.runtime.config.Config;
 import io.arex.inst.runtime.context.ArexContext;
 import io.arex.inst.runtime.context.ContextManager;
+import io.arex.inst.runtime.listener.EventProcessor;
 import io.arex.inst.runtime.request.RequestHandlerManager;
 import io.arex.inst.runtime.listener.CaseEvent;
 import io.arex.inst.runtime.listener.CaseEventDispatcher;
@@ -104,7 +104,7 @@ public class ServletAdviceHelper {
             return null;
         }
 
-        RequestHandlerManager.preHandle(httpServletRequest, MockCategoryType.SERVLET.getName());
+        RequestHandlerManager.preHandle(httpServletRequest, adapter.getServletVersion());
         // skip servlet if attr with arex-skip-flag
         if (Boolean.TRUE.equals(adapter.getAttribute(httpServletRequest, ArexConstants.SKIP_FLAG))) {
             return null;
@@ -120,8 +120,8 @@ public class ServletAdviceHelper {
             String excludeMockTemplate = adapter.getRequestHeader(httpServletRequest, ArexConstants.HEADER_EXCLUDE_MOCK);
             CaseEventDispatcher.onEvent(CaseEvent.ofCreateEvent(EventSource.of(caseId, excludeMockTemplate)));
             ContextManager.currentContext().setAttachment(ArexConstants.FORCE_RECORD,
-                adapter.getRequestHeader(httpServletRequest, ArexConstants.FORCE_RECORD));
-            RequestHandlerManager.handleAfterCreateContext(httpServletRequest, MockCategoryType.SERVLET.getName());
+                adapter.getRequestHeader(httpServletRequest, ArexConstants.FORCE_RECORD, ArexConstants.HEADER_X_PREFIX));
+            RequestHandlerManager.handleAfterCreateContext(httpServletRequest, adapter.getServletVersion());
         }
 
         if (ContextManager.needRecordOrReplay()) {
@@ -140,7 +140,7 @@ public class ServletAdviceHelper {
             TRequest httpServletRequest = adapter.asHttpServletRequest(servletRequest);
             TResponse httpServletResponse = adapter.asHttpServletResponse(servletResponse);
 
-            RequestHandlerManager.postHandle(httpServletRequest, httpServletResponse, MockCategoryType.SERVLET.getName());
+            RequestHandlerManager.postHandle(httpServletRequest, httpServletResponse, adapter.getServletVersion());
 
             if (httpServletRequest == null || httpServletResponse == null) {
                 return;
@@ -206,6 +206,10 @@ public class ServletAdviceHelper {
 
     private static <TRequest> boolean shouldSkip(ServletAdapter<TRequest, ?> adapter,
                                                  TRequest httpServletRequest) {
+        if (!EventProcessor.dependencyInitComplete()) {
+            return true;
+        }
+
         // skip if pre-request http-method is HEAD or OPTIONS
         if (HttpMethod.HEAD.matches(adapter.getMethod(httpServletRequest))
                 || HttpMethod.OPTIONS.matches(adapter.getMethod(httpServletRequest))) {
@@ -219,7 +223,7 @@ public class ServletAdviceHelper {
             return Config.get().getBoolean(ConfigConstants.DISABLE_REPLAY, false);
         }
 
-        String forceRecord = adapter.getRequestHeader(httpServletRequest, ArexConstants.FORCE_RECORD);
+        String forceRecord = adapter.getRequestHeader(httpServletRequest, ArexConstants.FORCE_RECORD, ArexConstants.HEADER_X_PREFIX);
         // Do not skip if header with arex-force-record=true
         if (Boolean.parseBoolean(forceRecord)) {
             return false;
