@@ -109,4 +109,11 @@ public class ContextManager {
             });
         }
     }
+
+    public static void setAttachment(String key, Object value) {
+        ArexContext context = currentContext();
+        if (context != null) {
+            context.setAttachment(key, value);
+        }
+    }
 }
